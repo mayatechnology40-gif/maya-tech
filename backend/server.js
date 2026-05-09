@@ -4,6 +4,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const dns = require('dns');
 const Contact = require('./models/Contact');
 const Booking = require('./models/Booking');
@@ -24,37 +25,13 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
-// Email Transporter Setup
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  family: 4, // FORCE IPv4
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: (process.env.EMAIL_PASS || '').replace(/\s+/g, '')
-  },
-  // Force IPv4 to resolve ENETUNREACH errors on Render
-  lookup: (hostname, options, callback) => {
-    dns.lookup(hostname, { family: 4 }, callback);
-  },
-  // High timeouts for slow networks like Render
-  connectionTimeout: 60000, 
-  greetingTimeout: 60000,
-  socketTimeout: 60000,
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+// Resend Setup
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Verify transporter on startup
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('Email configuration error:', error);
-  } else {
-    console.log('Server is ready to send emails');
-  }
-});
+// Check if Resend API Key is provided
+if (!process.env.RESEND_API_KEY) {
+  console.warn('WARNING: RESEND_API_KEY is not set in environment variables.');
+}
 
 // Routes
 app.post('/api/contact', async (req, res) => {
@@ -120,18 +97,32 @@ Maya Technologies Team`
     }
 
     try {
-      console.log(`Attempting to send emails...`);
-      await transporter.sendMail(adminMailOptions);
-      console.log('Admin email sent.');
-      await transporter.sendMail(userMailOptions);
-      console.log('User confirmation email sent.');
+      console.log(`Attempting to send emails via Resend...`);
+      
+      const fromAddress = 'Maya Technologies <onboarding@resend.dev>';
+
+      const adminResponse = await resend.emails.send({
+        from: fromAddress,
+        to: ['mayatechnology40@gmail.com', 'nikhilkamboz24@gmail.com'],
+        subject: adminMailOptions.subject,
+        text: adminMailOptions.text
+      });
+      console.log('Admin email sent:', adminResponse);
+
+      const userResponse = await resend.emails.send({
+        from: fromAddress,
+        to: email,
+        subject: userMailOptions.subject,
+        text: userMailOptions.text
+      });
+      console.log('User confirmation email sent:', userResponse);
 
       res.status(201).json({ success: true, message: 'Message sent successfully' });
     } catch (error) {
-      console.error('NODEMAILER ERROR:', error.message);
+      console.error('RESEND ERROR:', error);
       res.status(500).json({
         error: 'Failed to send message. Please try again later.',
-        details: error.message // Sending details to help debug (optional)
+        details: error.message
       });
     }
   } catch (error) {
@@ -193,12 +184,23 @@ Maya Technologies Team`
     };
 
     try {
-      await transporter.sendMail(adminMailOptions);
-      await transporter.sendMail(userMailOptions);
+      const fromAddress = 'Maya Technologies <onboarding@resend.dev>';
+      
+      await resend.emails.send({
+        from: fromAddress,
+        to: ['mayatechnology40@gmail.com', 'nikhilkamboz24@gmail.com'],
+        subject: adminMailOptions.subject,
+        text: adminMailOptions.text
+      });
+      await resend.emails.send({
+        from: fromAddress,
+        to: email,
+        subject: userMailOptions.subject,
+        text: userMailOptions.text
+      });
       console.log('Booking emails sent successfully to:', email);
     } catch (err) {
-      console.error('Email error:', err);
-      // We don't fail the request if email fails, as the booking is saved
+      console.error('Resend email error:', err);
     }
 
     res.status(201).json({ success: true, booking: newBooking });
@@ -248,7 +250,12 @@ Maya Technologies Team`
     };
 
     try {
-      await transporter.sendMail(mailOptions);
+      await resend.emails.send({
+        from: 'Maya Technologies <onboarding@resend.dev>',
+        to: updatedBooking.email,
+        subject: mailOptions.subject,
+        text: mailOptions.text
+      });
     } catch (err) {
       console.error('Reschedule email error:', err);
     }
