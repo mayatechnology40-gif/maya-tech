@@ -85,7 +85,7 @@ app.post('/api/contact', async (req, res) => {
     // 1. Send to Admin via Nodemailer
     transporter.sendMail({
       from: `"Maya Technologies" <${process.env.EMAIL_USER}>`,
-      to: 'mayatechnology40@gmail.com, nikhilkamboz24@gmail.com',
+      to: 'nikhilkamboz24@gmail.com',
       subject: `New Inquiry: ${name} - ${service}`,
       html: adminEmailContent
     }).catch(err => console.error('Admin Email Error (Nodemailer):', err));
@@ -94,7 +94,7 @@ app.post('/api/contact', async (req, res) => {
     transporter.sendMail({
       from: `"Maya Technologies" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: `Message Received - Maya Technologies`,
+      subject: `Thank you for contacting Maya Technologies`,
       html: userEmailContent
     }).then(() => console.log('User confirmation email sent to:', email))
       .catch(err => console.error('User Email Error (Nodemailer):', err));
@@ -104,8 +104,9 @@ app.post('/api/contact', async (req, res) => {
       resend.emails.send({
         from: 'Maya Technologies <onboarding@resend.dev>',
         to: 'mayatechnology40@gmail.com',
-        subject: `New Contact: ${name}`,
-        text: `New contact form submission from ${name} (${email}). Service: ${service}`
+        subject: `New Inquiry: ${name} - ${service}`,
+        html: adminEmailContent
+
       }).catch(err => console.error('Admin Email Error (Resend Fallback):', err));
     }
 
@@ -161,7 +162,7 @@ app.post('/api/bookings', async (req, res) => {
     // Send emails via Nodemailer
     transporter.sendMail({
       from: `"Maya Technologies" <${process.env.EMAIL_USER}>`,
-      to: 'mayatechnology40@gmail.com, nikhilkamboz24@gmail.com',
+      to: 'nikhilkamboz24@gmail.com',
       subject: `New Call Scheduled: ${name}`,
       html: adminBookingContent
     }).catch(err => console.error('Admin Booking Email Error:', err));
@@ -173,6 +174,16 @@ app.post('/api/bookings', async (req, res) => {
       html: userBookingContent
     }).then(() => console.log('Booking confirmation email sent to:', email))
       .catch(err => console.error('User Booking Email Error:', err));
+
+    // Fallback Admin Notification via Resend
+    if (process.env.RESEND_API_KEY) {
+      resend.emails.send({
+        from: 'Maya Technologies <onboarding@resend.dev>',
+        to: 'mayatechnology40@gmail.com',
+        subject: `New Call Scheduled: ${name}`,
+        html: adminBookingContent
+      }).catch(err => console.error('Admin Booking Email Error (Resend Fallback):', err));
+    }
 
     res.status(201).json({ success: true, booking: newBooking });
   } catch (error) {
@@ -226,6 +237,19 @@ app.patch('/api/bookings/:id', async (req, res) => {
       html: resendEmailContent
     }).then(() => console.log('Reschedule email sent to:', updatedBooking.email))
       .catch(err => console.error('Reschedule Email Error:', err));
+
+    // Fallback Admin Notification via Resend
+    if (process.env.RESEND_API_KEY) {
+      resend.emails.send({
+        from: 'Maya Technologies <onboarding@resend.dev>',
+        to: 'mayatechnology40@gmail.com',
+        subject: `Call Rescheduled: ${updatedBooking.name}`,
+        html: `<h3>Call Rescheduled</h3>
+               <p><strong>Name:</strong> ${updatedBooking.name}</p>
+               <p><strong>New Date:</strong> ${formattedDate}</p>
+               <p><strong>New Time:</strong> ${updatedBooking.time}</p>`
+      }).catch(err => console.error('Reschedule Email Error (Resend Fallback):', err));
+    }
 
     res.json(updatedBooking);
   } catch (error) {
