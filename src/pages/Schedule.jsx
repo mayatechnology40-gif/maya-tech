@@ -11,7 +11,7 @@ const Schedule = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -47,14 +47,21 @@ const Schedule = () => {
     setError('');
 
     try {
+      let response;
       if (isRescheduling) {
-        await bookingApi.updateBooking(id, formData);
+        response = await bookingApi.updateBooking(id, formData);
       } else {
-        await bookingApi.schedule(formData);
+        response = await bookingApi.schedule(formData);
       }
+
+      console.log('Booking successful:', response);
       setIsSubmitted(true);
       setIsLoading(false);
+
+      // Optional: reset after some time if they want to stay on the page
+      // setTimeout(() => setIsSubmitted(false), 10000);
     } catch (err) {
+      console.error('Booking submission error:', err);
       setError(err.message || 'Failed to process booking. Please try again.');
       setIsLoading(false);
     }
@@ -72,12 +79,12 @@ const Schedule = () => {
             <CheckCircle className="w-12 h-12 text-green-600" />
           </div>
           <h2 className="text-3xl font-black text-gray-900 mb-4">
-            {isRescheduling ? 'Call Rescheduled!' : 'Call Scheduled!'}
+            {isRescheduling ? 'Success! Call Rescheduled' : 'Success! Call Scheduled'}
           </h2>
           <p className="text-gray-600 mb-8 text-lg">
-            We've sent a confirmation email to <span className="font-bold text-primary-600">{formData.email}</span> with the details.
+            We've received your booking. A confirmation email has been sent to <span className="font-bold text-primary-600">{formData.email}</span>.
           </p>
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="w-full btn-primary py-4 text-xl"
           >
@@ -91,7 +98,7 @@ const Schedule = () => {
   return (
     <div className="min-h-screen bg-gray-50 pt-32 pb-20 px-4">
       <div className="max-w-4xl mx-auto">
-        <button 
+        <button
           onClick={() => navigate(-1)}
           className="flex items-center text-gray-600 hover:text-primary-600 font-bold mb-8 transition-colors group"
         >
